@@ -4,383 +4,355 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>你今天畫圖了嗎 - 創作紀錄</title>
+    
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel CDN (用於在瀏覽器中編譯 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body {
             font-family: 'Noto Sans TC', sans-serif;
             background: #f8fafc;
         }
-        .hide { display: none !important; }
         .glass {
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
-        /* 自定義動畫 */
-        @keyframes bounce-subtle {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        .animate-bounce-subtle {
-            animation: bounce-subtle 2s infinite;
-        }
     </style>
 </head>
 <body class="min-h-screen w-full flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-slate-200 text-slate-800 overflow-hidden">
 
-    <!-- 1. 上方彈出警示語 (Angry Alerts / Praise) -->
-    <div id="alert-container" class="fixed top-0 left-0 right-0 z-[100] flex justify-center p-6 transition-all duration-500 transform -translate-y-full opacity-0 pointer-events-none">
-        <div id="alert-box" class="px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 transition-colors duration-300">
-            <span id="alert-icon"></span>
-            <span id="alert-msg" class="text-xl font-black tracking-wider italic"></span>
-        </div>
-    </div>
+    <div id="root"></div>
 
-    <!-- 語言切換 -->
-    <button id="lang-toggle" class="fixed top-6 right-6 z-50 bg-white/70 backdrop-blur px-4 py-2 rounded-full text-xs font-bold border border-white/40 shadow-sm flex items-center gap-2 hover:bg-white transition-all">
-        <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-        <span id="lang-text">English</span>
-    </button>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-    <!-- 2. 認證介面 (Auth View) -->
-    <div id="view-auth" class="w-full max-w-md glass rounded-[2.5rem] p-10 shadow-2xl space-y-8">
-        <div class="text-center space-y-2">
-            <h1 id="auth-title" class="text-3xl font-black tracking-tight">你今天畫圖了嗎</h1>
-            <div id="warning-tag" class="inline-block px-3 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded-full border border-red-100 uppercase tracking-wider">
-                僅供娛樂，勿使用重要個資
-            </div>
-            <p id="auth-subtitle" class="text-slate-400 text-sm">紀錄每一天的創作足跡</p>
-        </div>
+        // 更新後的 Google Apps Script API 網址
+        const API_URL = 'https://script.google.com/macros/s/AKfycbz1APuemOg6Shhr7L7QEg-UbLiVeTohjZzZju4XPymXgKvtwVcDucFiU9gwXRdW0pOw/exec'; 
 
-        <div class="space-y-4">
-            <input id="input-username" type="text" placeholder="帳號 (限英數)" class="w-full px-6 py-4 rounded-2xl bg-white border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-slate-400 outline-none transition-all shadow-inner">
-            <input id="input-password" type="password" placeholder="密碼" class="w-full px-6 py-4 rounded-2xl bg-white border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-slate-400 outline-none transition-all shadow-inner">
-            <button id="btn-auth" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
-                <span id="auth-btn-text">登入</span>
-            </button>
-            <div class="text-center pt-2">
-                <button id="btn-toggle-mode" class="text-xs text-slate-400 hover:text-slate-900 transition-colors font-medium">
-                    還沒有帳號嗎？ <span id="toggle-text" class="underline font-bold text-slate-600">立即註冊</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. 主介面 (Main View) -->
-    <div id="view-main" class="hide w-full max-w-md glass rounded-[3rem] p-12 shadow-2xl flex flex-col items-center space-y-12">
-        <div class="text-center space-y-1">
-            <p id="current-date" class="text-slate-400 text-xs font-bold tracking-[0.2em] uppercase"></p>
-            <h2 id="welcome-msg" class="text-3xl font-black">你好, 使用者</h2>
-        </div>
-
-        <button id="btn-checkin" class="group relative w-56 h-56 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center border-8 border-slate-50 hover:border-white transition-all active:scale-90">
-            <div class="p-5 bg-slate-900 rounded-full text-white mb-4 group-hover:scale-110 transition-transform duration-300">
-                <i data-lucide="pen-tool" class="w-8 h-8"></i>
-            </div>
-            <span id="checkin-text" class="text-2xl font-black text-slate-800 tracking-tight">畫圖了</span>
-        </button>
-
-        <div class="w-full space-y-4">
-            <button id="btn-to-history" class="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-900 font-bold text-sm transition-colors py-2">
-                <i data-lucide="history" class="w-4.5 h-4.5"></i>
-                <span id="history-link-text">畫圖紀錄表</span>
-            </button>
-            <button id="btn-logout" class="w-full text-slate-300 hover:text-red-400 text-[10px] font-bold uppercase tracking-widest transition-colors pt-4 flex items-center justify-center gap-2">
-                <i data-lucide="log-out" class="w-3 h-3"></i>
-                <span id="logout-text">登出系統</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- 4. 紀錄清單 (History View) -->
-    <div id="view-history" class="hide w-full max-w-2xl glass rounded-[2.5rem] p-8 shadow-2xl min-h-[500px] flex flex-col">
-        <div class="flex justify-between items-center mb-10">
-            <button id="btn-back-main" class="p-3 bg-white rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 hover:text-slate-900">
-                <i data-lucide="chevron-left" class="w-6 h-6"></i>
-            </button>
-            <h2 id="history-title" class="text-2xl font-black tracking-tight">紀錄清單</h2>
-            <div class="w-12"></div>
-        </div>
-
-        <div id="history-list" class="flex-grow overflow-y-auto space-y-3 px-2">
-            <!-- 紀錄動態渲染 -->
-        </div>
-
-        <div class="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center px-2">
-            <div id="stats-count" class="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-3 py-1 rounded-full">
-                0 次完成紀錄
-            </div>
-        </div>
-    </div>
-
-    <!-- 5. 底部 Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 bg-slate-900 text-white rounded-3xl text-sm shadow-2xl transition-all duration-300 opacity-0 translate-y-4 pointer-events-none z-[200]">
-        通知訊息
-    </div>
-
-    <script>
-        // 設定與全域變數
-        const API_URL = 'https://script.google.com/macros/s/AKfycbz1APuemOg6Shhr7L7QEg-UbLiVeTohjZzZju4XPymXgKvtwVcDucFiU9gwXRdW0pOw/exec';
-        let appUser = localStorage.getItem('draw_app_username') || null;
-        let currentLang = 'zh';
-        let isLoginMode = true;
-        let goals = [];
-        let angryTimers = [];
-
-        const i18n = {
-            zh: {
-                authTitle: "你今天畫圖了嗎", authSubtitle: "紀錄每一天的創作足跡",
-                login: "登入", register: "註冊", noAccount: "還沒有帳號嗎？", hasAccount: "已有帳號？",
-                toggleToReg: "立即註冊", toggleToLogin: "返回登入", welcome: "你好, ",
-                mainCheckin: "畫圖了", subHistory: "畫圖紀錄表", historyTitle: "紀錄清單",
-                stats: " 次完成紀錄", empty: "尚無打卡紀錄，今天開始畫畫吧！",
-                error: "連線異常", errorUsername: "帳號格式錯誤", successReg: "註冊成功！",
-                doneCheckin: "打卡成功！", praise: "你好棒！", warning: "僅供娛樂，勿使用重要個資",
-                angry3s: "你為甚麼沒畫圖???", angry6s: "再不畫圖你要死阿",
-                logout: "登出系統"
-            },
-            en: {
-                authTitle: "Did you draw today?", authSubtitle: "Trace your creative journey",
-                login: "Sign In", register: "Sign Up", noAccount: "New here?", hasAccount: "Have an account?",
-                toggleToReg: "Sign Up Now", toggleToLogin: "Back to Login", welcome: "Hello, ",
-                mainCheckin: "I Drew Today", subHistory: "View History", historyTitle: "Daily History",
-                stats: " completions", empty: "No records yet.",
-                error: "Connection Error", errorUsername: "Username alphanumeric only", successReg: "Registered!",
-                doneCheckin: "Success!", praise: "You are amazing!", warning: "For fun only",
-                angry3s: "Why haven't you drawn???", angry6s: "DRAW NOW OR DIE!",
-                logout: "Logout System"
-            }
-        };
-
-        // 初始化圖示
-        function refreshIcons() {
-            lucide.createIcons();
-        }
-
-        // 頁面切換
-        function switchView(viewName) {
-            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hide'));
-            document.getElementById(`view-${viewName}`).classList.remove('hide');
-
-            clearAngryTimers();
-            if (viewName === 'main' && appUser) {
-                const t = i18n[currentLang];
-                angryTimers.push(setTimeout(() => showAlert(t.angry3s, 'angry'), 3000));
-                angryTimers.push(setTimeout(() => showAlert(t.angry6s, 'angry'), 6000));
-                updateMainUI();
-            }
-            if (viewName === 'history') {
-                renderHistory();
-                fetchHistory();
-            }
-            refreshIcons();
-        }
-
-        function updateMainUI() {
-            const t = i18n[currentLang];
-            document.getElementById('welcome-msg').innerText = t.welcome + appUser;
-            document.getElementById('current-date').innerText = new Date().toLocaleDateString(currentLang === 'zh' ? 'zh-TW' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-        }
-
-        // 語言控制
-        function updateTexts() {
-            const t = i18n[currentLang];
-            document.getElementById('lang-text').innerText = currentLang === 'zh' ? 'English' : '中文';
-            document.getElementById('auth-title').innerText = isLoginMode ? t.authTitle : t.register;
-            document.getElementById('auth-btn-text').innerText = isLoginMode ? t.login : t.register;
-            document.getElementById('auth-subtitle').innerText = t.authSubtitle;
-            document.getElementById('warning-tag').innerText = t.warning;
-            document.getElementById('toggle-text').innerText = isLoginMode ? t.toggleToReg : t.toggleToLogin;
-            document.getElementById('btn-toggle-mode').firstChild.textContent = isLoginMode ? t.noAccount + " " : t.hasAccount + " ";
+        function App() {
+            const [appUser, setAppUser] = useState(null); 
+            const [view, setView] = useState('auth'); 
+            const [isLoginMode, setIsLoginMode] = useState(true);
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [lang, setLang] = useState('zh');
+            const [goals, setGoals] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [toast, setToast] = useState({ show: false, msg: '' });
             
-            document.getElementById('checkin-text').innerText = t.mainCheckin;
-            document.getElementById('history-link-text').innerText = t.subHistory;
-            document.getElementById('logout-text').innerText = t.logout;
-            document.getElementById('history-title').innerText = t.historyTitle;
-        }
+            // 上方警示專用的狀態 (用於生氣語或獎勵語)
+            const [alertToast, setAlertToast] = useState({ show: false, msg: '', type: 'angry' });
 
-        // 上方警示 (Praise/Angry)
-        function showAlert(msg, type = 'angry') {
-            const container = document.getElementById('alert-container');
-            const box = document.getElementById('alert-box');
-            const icon = document.getElementById('alert-icon');
-            const msgEl = document.getElementById('alert-msg');
+            const i18n = {
+                zh: {
+                    authTitle: "你今天畫圖了嗎",
+                    authSubtitle: "紀錄每一天的創作足跡",
+                    login: "登入",
+                    register: "註冊",
+                    noAccount: "還沒有帳號嗎？",
+                    hasAccount: "已有帳號？",
+                    toggleToReg: "立即註冊",
+                    toggleToLogin: "返回登入",
+                    welcome: "你好, ",
+                    mainCheckin: "畫圖了",
+                    subHistory: "畫圖紀錄表",
+                    historyTitle: "紀錄清單",
+                    stats: " 次完成紀錄",
+                    empty: "尚無打卡紀錄，今天開始畫畫吧！",
+                    error: "連線異常",
+                    errorUsername: "帳號格式錯誤：僅能使用英文字母或數字",
+                    successReg: "註冊請求已送出！請嘗試登入",
+                    doneCheckin: "打卡成功！已記錄到資料庫",
+                    praise: "你好棒！",
+                    warning: "僅供娛樂，勿使用重要個資",
+                    angry3s: "你為甚麼沒畫圖???",
+                    angry6s: "再不畫圖你要死阿"
+                },
+                en: {
+                    authTitle: "Did you draw today?",
+                    authSubtitle: "Trace your creative journey",
+                    login: "Sign In",
+                    register: "Sign Up",
+                    noAccount: "New here?",
+                    hasAccount: "Have an account?",
+                    toggleToReg: "Sign Up Now",
+                    toggleToLogin: "Back to Login",
+                    welcome: "Hello, ",
+                    mainCheckin: "I Drew Today",
+                    subHistory: "View History",
+                    historyTitle: "Daily History",
+                    stats: " completions",
+                    empty: "No records yet. Let's draw something!",
+                    error: "Connection issue.",
+                    errorUsername: "Username must be alphanumeric only",
+                    successReg: "Registration sent! Try logging in.",
+                    doneCheckin: "Check-in successful!",
+                    praise: "You are amazing!",
+                    warning: "For fun only",
+                    angry3s: "Why haven't you drawn yet???",
+                    angry6s: "DRAW NOW OR DIE!"
+                }
+            };
 
-            msgEl.innerText = msg;
-            if (type === 'angry') {
-                box.className = "px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 bg-red-500 text-white border-red-400";
-                icon.innerHTML = '<i data-lucide="alert-circle" class="animate-bounce"></i>';
-            } else {
-                box.className = "px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 bg-emerald-500 text-white border-emerald-400";
-                icon.innerHTML = '<i data-lucide="heart" class="animate-pulse fill-current"></i>';
-            }
-            refreshIcons();
+            const t = i18n[lang];
 
-            container.classList.remove('-translate-y-full', 'opacity-0');
-            container.classList.add('translate-y-0', 'opacity-100');
+            // 停留時間警示邏輯
+            useEffect(() => {
+                let timer3s, timer6s;
+                if (view === 'main' && appUser) {
+                    timer3s = setTimeout(() => showAlert(t.angry3s, 'angry'), 3000);
+                    timer6s = setTimeout(() => showAlert(t.angry6s, 'angry'), 6000);
+                }
+                return () => {
+                    clearTimeout(timer3s);
+                    clearTimeout(timer6s);
+                };
+            }, [view, appUser, lang]);
 
-            setTimeout(() => {
-                container.classList.add('-translate-y-full', 'opacity-0');
-                container.classList.remove('translate-y-0', 'opacity-100');
-            }, type === 'praise' ? 3500 : 2500);
-        }
+            useEffect(() => {
+                const savedUser = localStorage.getItem('draw_app_username');
+                if (savedUser) {
+                    setAppUser(savedUser);
+                    setView('main');
+                }
+                // 初始化圖示
+                lucide.createIcons();
+            }, []);
 
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
-            toast.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
-                toast.classList.remove('opacity-100', 'translate-y-0');
-            }, 3000);
-        }
+            useEffect(() => {
+                if (view === 'history' && appUser) {
+                    fetchGoals();
+                }
+                lucide.createIcons();
+            }, [view, appUser]);
 
-        function clearAngryTimers() {
-            angryTimers.forEach(t => clearTimeout(t));
-            angryTimers = [];
-        }
+            const showToast = (msg) => {
+                setToast({ show: true, msg });
+                setTimeout(() => setToast({ show: false, msg: '' }), 3000);
+            };
 
-        // API 
-        async function apiCall(data) {
-            try {
-                // GAS POST 通常建議使用 no-cors 避免預檢請求失敗
-                fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(data)
-                });
-                return { status: 'success' };
-            } catch (err) {
-                console.error(err);
-                return { status: 'error' };
-            }
-        }
+            const showAlert = (msg, type = 'angry') => {
+                setAlertToast({ show: true, msg, type });
+                const duration = type === 'praise' ? 3500 : 2500;
+                setTimeout(() => setAlertToast(prev => ({ ...prev, show: false })), duration);
+            };
 
-        // 事件監聽
-        document.getElementById('lang-toggle').onclick = () => {
-            currentLang = currentLang === 'zh' ? 'en' : 'zh';
-            updateTexts();
-            if (appUser) updateMainUI();
-        };
+            const apiCall = async (data) => {
+                setLoading(true);
+                try {
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify(data),
+                    });
+                    return { status: 'success' };
+                } catch (err) {
+                    console.error("API Error:", err);
+                    return { status: 'error' };
+                } finally {
+                    setTimeout(() => setLoading(false), 500);
+                }
+            };
 
-        document.getElementById('btn-toggle-mode').onclick = () => {
-            isLoginMode = !isLoginMode;
-            updateTexts();
-        };
+            const fetchGoals = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'getGoals', username: appUser })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success' && result.goals) {
+                        setGoals(result.goals);
+                    }
+                } catch (err) {
+                    console.error("Fetch Goals Error:", err);
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-        document.getElementById('btn-auth').onclick = async () => {
-            const user = document.getElementById('input-username').value;
-            const pass = document.getElementById('input-password').value;
-            const t = i18n[currentLang];
+            const handleAuth = async () => {
+                if (!username || !password) return showToast("請完整填寫");
+                if (!/^[A-Za-z0-9]+$/.test(username)) return showToast(t.errorUsername);
+                
+                const action = isLoginMode ? 'login' : 'register';
+                const result = await apiCall({ action, username, password });
 
-            if (!user || !pass) return showToast("請完整填寫");
-            if (!/^[A-Za-z0-9]+$/.test(user)) return showToast(t.errorUsername);
-
-            const result = await apiCall({ action: isLoginMode ? 'login' : 'register', username: user, password: pass });
-            if (result.status === 'success') {
-                if (isLoginMode) {
-                    appUser = user;
-                    localStorage.setItem('draw_app_username', user);
-                    switchView('main');
+                if (result.status === 'success') {
+                    if (isLoginMode) {
+                        setAppUser(username);
+                        localStorage.setItem('draw_app_username', username);
+                        setView('main');
+                    } else {
+                        showToast(t.successReg);
+                        setIsLoginMode(true);
+                    }
                 } else {
-                    showToast(t.successReg);
-                    isLoginMode = true;
-                    updateTexts();
+                    showToast(t.error);
                 }
-            }
-        };
+            };
 
-        document.getElementById('btn-checkin').onclick = async () => {
-            const t = i18n[currentLang];
-            clearAngryTimers();
-            // 立即隱藏警示
-            document.getElementById('alert-container').classList.add('-translate-y-full', 'opacity-0');
-            
-            const now = new Date();
-            const text = `畫圖打卡 - ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-            
-            showAlert(t.praise, 'praise');
-            
-            await apiCall({
-                action: 'saveGoal',
-                username: appUser,
-                text: text,
-                completed: true,
-                id: Date.now().toString()
-            });
-            showToast(t.doneCheckin);
-        };
-
-        document.getElementById('btn-logout').onclick = () => {
-            localStorage.removeItem('draw_app_username');
-            appUser = null;
-            switchView('auth');
-        };
-
-        document.getElementById('btn-to-history').onclick = () => switchView('history');
-        document.getElementById('btn-back-main').onclick = () => switchView('main');
-
-        async function fetchHistory() {
-            try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getGoals', username: appUser })
+            const handleQuickCheckIn = async () => {
+                setAlertToast({ show: false, msg: '', type: 'angry' });
+                const now = new Date();
+                const id = Date.now().toString();
+                const text = `畫圖打卡 - ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                setGoals(prev => [{ id, text, completed: true }, ...prev]);
+                showAlert(t.praise, 'praise');
+                const result = await apiCall({
+                    action: 'saveGoal',
+                    username: appUser,
+                    text: text,
+                    completed: true,
+                    id: id
                 });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    goals = data.goals;
-                    renderHistory();
+                if (result.status === 'success') {
+                    showToast(t.doneCheckin);
                 }
-            } catch (err) { console.error(err); }
-        }
+            };
 
-        function renderHistory() {
-            const list = document.getElementById('history-list');
-            const stats = document.getElementById('stats-count');
-            const t = i18n[currentLang];
-            
-            stats.innerText = `${goals.length}${t.stats}`;
-            
-            if (goals.length === 0) {
-                list.innerHTML = `<div class="text-center py-20 text-slate-300 italic text-sm font-medium">${t.empty}</div>`;
-                return;
-            }
+            const handleDelete = async (id) => {
+                setGoals(prev => prev.filter(g => g.id !== id));
+                await apiCall({ action: 'deleteGoal', id, username: appUser });
+            };
 
-            list.innerHTML = goals.map(g => `
-                <div class="group flex items-center justify-between p-6 rounded-3xl bg-white/40 border border-white hover:bg-white/60 transition-all hover:shadow-sm">
-                    <div class="flex items-center gap-4">
-                        <div class="w-2.5 h-2.5 rounded-full bg-slate-900"></div>
-                        <span class="font-bold text-slate-700">${g.text}</span>
+            const logout = () => {
+                localStorage.removeItem('draw_app_username');
+                setAppUser(null);
+                setView('auth');
+                setUsername('');
+                setPassword('');
+            };
+
+            return (
+                <div className="min-h-screen w-full flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-slate-200 font-sans text-slate-800 overflow-hidden">
+                    
+                    {/* 上方彈出警示語 */}
+                    <div className={`fixed top-0 left-0 right-0 z-[100] flex justify-center p-6 transition-all duration-500 transform ${alertToast.show ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+                        <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-2 transition-colors duration-300 ${alertToast.type === 'angry' ? 'bg-red-500 text-white border-red-400' : 'bg-emerald-500 text-white border-emerald-400'}`}>
+                            {alertToast.type === 'angry' ? <i data-lucide="alert-circle" className="animate-bounce"></i> : <i data-lucide="heart" className="animate-pulse fill-current"></i>}
+                            <span className="text-xl font-black tracking-wider italic">{alertToast.msg}</span>
+                        </div>
                     </div>
-                    <button onclick="deleteGoal('${g.id}')" class="p-2 text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
-                        <i data-lucide="trash-2" class="w-4.5 h-4.5"></i>
+
+                    {/* 語言切換按鈕 */}
+                    <button onClick={() => setLang(l => l === 'zh' ? 'en' : 'zh')} className="fixed top-6 right-6 z-50 bg-white/70 backdrop-blur px-4 py-2 rounded-full text-xs font-bold border border-white/40 shadow-sm flex items-center gap-2 hover:bg-white transition-all">
+                        <i data-lucide="globe" style={{width: '14px', height: '14px'}}></i>
+                        {lang === 'zh' ? 'English' : '中文'}
                     </button>
+
+                    {/* 登入註冊頁面 */}
+                    {view === 'auth' && (
+                        <div className="w-full max-w-md glass rounded-[2.5rem] p-10 shadow-2xl space-y-8 animate-in fade-in zoom-in duration-500">
+                            <div className="text-center space-y-2">
+                                <h1 className="text-3xl font-black tracking-tight">{isLoginMode ? t.authTitle : t.register}</h1>
+                                <div className="inline-block px-3 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded-full border border-red-100 uppercase tracking-wider">{t.warning}</div>
+                                <p className="text-slate-400 text-sm">{t.authSubtitle}</p>
+                            </div>
+                            <div className="space-y-4">
+                                <input type="text" placeholder={lang === 'zh' ? "帳號 (限英數)" : "Username"} value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-white border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-slate-400 outline-none transition-all shadow-inner" />
+                                <input type="password" placeholder={lang === 'zh' ? "密碼" : "Password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-white border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-slate-400 outline-none transition-all shadow-inner" />
+                                <button onClick={handleAuth} disabled={loading} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                                    {loading && <i data-lucide="loader-2" className="animate-spin" style={{width: '18px', height: '18px'}}></i>}
+                                    {isLoginMode ? t.login : t.register}
+                                </button>
+                                <div className="text-center pt-2">
+                                    <button onClick={() => setIsLoginMode(!isLoginMode)} className="text-xs text-slate-400 hover:text-slate-900 transition-colors font-medium">
+                                        {isLoginMode ? t.noAccount : t.hasAccount} <span className="underline font-bold text-slate-600">{isLoginMode ? t.toggleToReg : t.toggleToLogin}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 主介面 */}
+                    {view === 'main' && (
+                        <div className="w-full max-w-md glass rounded-[3rem] p-12 shadow-2xl flex flex-col items-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-500">
+                            <div className="text-center space-y-1">
+                                <p className="text-slate-400 text-xs font-bold tracking-[0.2em] uppercase">
+                                    {new Date().toLocaleDateString(lang === 'zh' ? 'zh-TW' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </p>
+                                <h2 className="text-3xl font-black">{t.welcome}{appUser}</h2>
+                            </div>
+                            <button onClick={handleQuickCheckIn} disabled={loading} className="group relative w-56 h-56 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center border-8 border-slate-50 hover:border-white transition-all active:scale-90">
+                                <div className="p-5 bg-slate-900 rounded-full text-white mb-4 group-hover:scale-110 transition-transform duration-300">
+                                    <i data-lucide="pen-tool" style={{width: '32px', height: '32px'}}></i>
+                                </div>
+                                <span className="text-2xl font-black text-slate-800 tracking-tight">{t.mainCheckin}</span>
+                                {loading && <i data-lucide="loader-2" className="absolute inset-0 m-auto animate-spin text-slate-200" style={{width: '48px', height: '48px'}}></i>}
+                            </button>
+                            <div className="w-full space-y-4">
+                                <button onClick={() => setView('history')} className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-900 font-bold text-sm transition-colors py-2">
+                                    <i data-lucide="history" style={{width: '18px', height: '18px'}}></i>
+                                    {t.subHistory}
+                                </button>
+                                <button onClick={logout} className="w-full text-slate-300 hover:text-red-400 text-[10px] font-bold uppercase tracking-widest transition-colors pt-4 flex items-center justify-center gap-2">
+                                    <i data-lucide="log-out" style={{width: '12px', height: '12px'}}></i>
+                                    {lang === 'zh' ? '登出系統' : 'Logout System'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 紀錄清單頁面 */}
+                    {view === 'history' && (
+                        <div className="w-full max-w-2xl glass rounded-[2.5rem] p-8 shadow-2xl min-h-[500px] flex flex-col animate-in fade-in zoom-in duration-300">
+                            <div className="flex justify-between items-center mb-10">
+                                <button onClick={() => setView('main')} className="p-3 bg-white rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 hover:text-slate-900">
+                                    <i data-lucide="chevron-left" style={{width: '24px', height: '24px'}}></i>
+                                </button>
+                                <h2 className="text-2xl font-black tracking-tight">{t.historyTitle}</h2>
+                                <div className="w-12"></div>
+                            </div>
+                            <div className="flex-grow overflow-y-auto space-y-3 px-2">
+                                {goals.length === 0 ? (
+                                    <div className="text-center py-20 text-slate-300 italic text-sm font-medium">{t.empty}</div>
+                                ) : (
+                                    goals.map((goal) => (
+                                        <div key={goal.id} className="group flex items-center justify-between p-6 rounded-3xl bg-white/40 border border-white hover:bg-white/60 transition-all hover:shadow-sm">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-2.5 h-2.5 rounded-full bg-slate-900"></div>
+                                                <span className="font-bold text-slate-700">{goal.text}</span>
+                                            </div>
+                                            <button onClick={() => handleDelete(goal.id)} className="p-2 text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                                                <i data-lucide="trash-2" style={{width: '18px', height: '18px'}}></i>
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center px-2">
+                                <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-3 py-1 rounded-full">
+                                    {goals.length}{t.stats}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Toast 訊息 */}
+                    <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-4 bg-slate-900 text-white rounded-3xl text-sm shadow-2xl transition-all duration-300 z-[200] ${toast.show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+                        {toast.msg}
+                    </div>
                 </div>
-            `).join('');
-            refreshIcons();
+            );
         }
 
-        async function deleteGoal(id) {
-            goals = goals.filter(g => g.id !== id);
-            renderHistory();
-            await apiCall({ action: 'deleteGoal', id, username: appUser });
-        }
-
-        // 載入初始化
-        window.onload = () => {
-            updateTexts();
-            if (appUser) {
-                switchView('main');
-            } else {
-                switchView('auth');
-            }
-        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
